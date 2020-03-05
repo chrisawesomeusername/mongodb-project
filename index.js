@@ -8,6 +8,7 @@ const config = require('./config.json');// to store credentials
 const products = require('./Products.json');// external api json data
 const dbProduct = require('./models/products.js');
 const User = require('./models/users.js');
+const Product = require('./models/products.js');
 const port = 3000;
 //connect to db
 const mongodbURI = `mongodb+srv://${config.MONGO_USER}:${config.MONGO_PASS}@${config.MONGO_CLUSTER}.mongodb.net/shop?retryWrites=true&w=majority`
@@ -26,18 +27,12 @@ app.use((req, res, next)=>{
   next();//indclude this to go to the next middleware
 });
 
-
 //including bodyParser, cors, bcryptjs
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended:false}));
-
 app.use(cors());
 
-
-
-
 app.get('/', (req, res) => res.send('Welcome to mongodb stuff'));
-
 app.get('/allProducts', (req,res)=>{
   res.json(products);
 });
@@ -50,8 +45,8 @@ app.get('/products/p=:id', (req, res)=>{
   }
 });
 
-
-//register users
+//-=-=-=-=-=-=-=-=-=-=USER SECTION=-=-=-=-=-=-=-=-=-=-=-//
+//register users (C)RUD
 app.post('/registerUser', (req, res)=>{
   //checking if user is found in DB already
   User.findOne({username : req.body.username},(err, userResult)=>{
@@ -73,21 +68,52 @@ app.post('/registerUser', (req, res)=>{
   });
 });
 
-//get all user
-
+//get all user C(R)UD
 app.get('/allUsers', (req, res)=>{
   User.find().then(result => {
     res.send(result);
   });
 });
 
-app.post('/loginUser', (req, res) =>{
+//update user CR(U)D
+app.patch('/updateUser/:id', (req,res)=>{
+  const idParam = req.params.id;
+  User.findById(idParam,(err,user)=>{
+      const updatedUser = {
+      username : req.body.username,
+         email : req.body.email,
+      password : req.body.password
+    };
+    User.updateOne({_id:idParam}, updatedUser).then(result=>{
+      res.send(result);
+    }).catch(err=>res.send(err));
+  }).catch(err=>res.send('not found'));
+});
+
+
+//delete user CRU(D)
+app.delete('/deleteUser/:id', (req, res)=>{
+  const idParam = req.params.id;
+  User.findOne({_id:idParam}, (err,user)=>{
+    if (user){
+      User.deleteOne({_id:idParam},err=>{
+        res.send('deleted');
+      });
+    } else{
+      res.send('not found')
+    }
+  }).catch(err => res.send(err));
+});
+
+
+//login user
+app.post('/loginUser', (req, res)=>{
   User.findOne({username : req.body.username},(err, userResult)=>{
   if (userResult){
     if (bcryptjs.compareSync(req.body.password, userResult.password)) {
       res.send(userResult);
     } else {
-      res.send ('not authorized')
+      res.send('not authorized')
     }
   } else {
     res.send('User not found. Please register.')
@@ -95,9 +121,64 @@ app.post('/loginUser', (req, res) =>{
   });
 });
 
+//-=-=-=-=-=-=-=-=-=-=USER SECTION=-=-=-=-=-=-=-=-=-=-=-//
+
+//-=-=-=-=-=-=-=-=-PRODUCT SECTION-=-=-=-=-=-=-=-=-=-=-//
+
+app.post('/registerProduct', (req, res)=>{
+  Product.findOne({name : req.body.name},(err, productResult)=>{
+    if (productResult) {
+      res.send ('Product already in store')
+    } else {
+      const product = new Product({
+        _id  : new mongoose.Types.ObjectId,
+        name : req.body.name,
+       price : req.body.price,
+    imageUrl : req.body.imageUrl
+      });
+      product.save().then(result =>{
+        res.send(result);
+      }).catch(err => res.send(err));
+    }
+  });
+});
+
+app.get('/allProduct', (req, res)=>{
+  Product.find().then(result => {
+    res.send(result);
+  });
+});
+
+app.delete('/deleteProduct/:id', (req, res)=>{
+  const idParam = req.params.id;
+  Product.findOne({_id:idParam}, (err,product)=>{
+    if (product){
+      Product.deleteOne({_id:idParam},err=>{
+        res.send('deleted');
+      });
+    } else{
+      res.send('not found')
+    }
+  }).catch(err => res.send(err));
+});
 
 
+app.patch('/updateProduct/:id', (req,res)=>{
+  const idParam = req.params.id;
+  Product.findById(idParam,(err,product)=>{
+      const updatedProduct = {
+          name : req.body.name,
+         price : req.body.price,
+      imageUrl : req.body.imageUrl
+    };
+    Product.updateOne({_id:idParam}, updatedProduct).then(result=>{
+      res.send(result);
+    }).catch(err=>res.send(err));
+  }).catch(err=>res.send('not found'));
+});
+
+//-=-=-=-=-=-=-=-=-PRODUCT SECTION-=-=-=-=-=-=-=-=-=-=-//
 
 
 //always keep this at the end
-app.listen(port, () => console.log(`mongodb app ${port}!`));
+app.listen(port, ()=> console.log(`mongodb app ${port}!`));
